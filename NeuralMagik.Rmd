@@ -1,0 +1,101 @@
+---
+title: "Neural-Magik"
+author: "FERGD"
+date: "1/2/2018"
+output: html_document
+runtime: shiny
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE ,  message = FALSE)
+```
+
+## Probando Redes Neuronales
+
+Cargar imagen y esperar magia...
+
+## Carga de Imagen
+
+```{r eruptions, echo=FALSE}
+library(shiny)
+library(miniUI)
+library(magick)
+library(keras)
+library(DT)
+library(text2vec)
+library(shinyFiles)
+
+vgg16 <- application_vgg16(weights = 'imagenet', include_top = TRUE)
+
+
+shinyApp(
+ui <- fluidPage(
+  sidebarLayout(
+    sidebarPanel(
+      fileInput("file1", "Elegir Imagen",
+        accept = c(
+          "imagen/csv",
+          "imagen/cosiyas",
+          ".jpg")
+        ),
+      tags$hr(),
+      checkboxInput("header", "Header", TRUE)
+    ),
+    mainPanel(
+      tags$em("Preview"),
+      imageOutput("imagen"),
+      tags$em("Esto es un..."),
+      tableOutput("contents")
+    )
+  )
+),
+server <- function(input, output, session) {
+  output$imagen <- renderImage({
+    inFile = input$file1
+    print(inFile)
+    if (!is.null(inFile))
+    {
+      
+      width  <- session$clientData$output_imagen_width
+      height <- session$clientData$output_imagen_height
+      list(
+        src = inFile$datapath,
+        width=width,
+        height=height
+      )
+    }
+    else
+    {
+      list(src="www/kast.png")
+    }
+  },
+  deleteFile = FALSE
+  )
+  
+  
+  output$contents <- renderTable({
+    # input$file1 will be NULL initially. After the user selects
+    # and uploads a file, it will be a data frame with 'name',
+    # 'size', 'type', and 'datapath' columns. The 'datapath'
+    # column will contain the local filenames where the data can
+    # be found.
+    inFile <- input$file1
+
+    if (is.null(inFile))
+      return(NULL)
+    # Procesar
+    img     <- image_load(inFile$datapath, target_size = c(224,224))
+    x = image_to_array(img)
+    dim(x) <- c(1, dim(x))
+    x = imagenet_preprocess_input(x)
+    features = vgg16 %>% predict(x)
+    imagenet_decode_predictions(features, top = 3)[[1]]
+  })
+}
+)
+
+``` 
+
+
+
+
