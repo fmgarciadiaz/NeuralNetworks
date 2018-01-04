@@ -1,0 +1,12 @@
+name: NeuralMagik
+title: NeuralMagik
+username:
+account: fmgarciadiaz
+server: shinyapps.io
+hostUrl: https://api.shinyapps.io/v1
+appId: 253620
+bundleId: 1161532
+url: https://fmgarciadiaz.shinyapps.io/NeuralMagik/
+when: 1515070029.26126
+asMultiple: FALSE
+asStatic: FALSE

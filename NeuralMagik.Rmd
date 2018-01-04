@@ -25,7 +25,8 @@ library(DT)
 library(text2vec)
 library(shinyFiles)
 
-vgg16 <- application_vgg16(weights = 'imagenet', include_top = TRUE)
+#vgg16 <- application_vgg16(weights = 'imagenet', include_top = TRUE)
+vgg16 <- application_mobilenet(weights = 'imagenet', include_top = TRUE)
 
 
 shinyApp(
@@ -87,9 +88,11 @@ server <- function(input, output, session) {
     img     <- image_load(inFile$datapath, target_size = c(224,224))
     x = image_to_array(img)
     dim(x) <- c(1, dim(x))
-    x = imagenet_preprocess_input(x)
+    #x = imagenet_preprocess_input(x)
+    x = mobilenet_preprocess_input(x)
     features = vgg16 %>% predict(x)
-    imagenet_decode_predictions(features, top = 3)[[1]]
+    #imagenet_decode_predictions(features, top = 3)[[1]]
+    mobilenet_decode_predictions(features, top = 3)[[1]]
   })
 }
 )
