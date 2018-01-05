@@ -1,8 +1,8 @@
 ---
-title: "Neural-Magik"
-author: "FERGD"
-date: "1/2/2018"
-output: html_document
+title: "Neural-Magik!"
+author: "F.García Díaz"
+date: "1/4/2018"
+output: html_notebook
 runtime: shiny
 ---
 
@@ -10,20 +10,29 @@ runtime: shiny
 knitr::opts_chunk$set(echo = TRUE ,  message = FALSE)
 ```
 
-## Probando Redes Neuronales
+### Probando Deep Neural-Networks en 
+![](www/R.jpg){ width=5% }
 
-Cargar imagen y esperar magia...
+Una aplicación para la clasificación de imágenes.
+Implementa el modelo [***MobileNet***](https://arxiv.org/abs/1704.04861) en [***Keras***](https://keras.rstudio.com) pre-entrenado con [***ImageNet***](http://www.image-net.org).
 
-## Carga de Imagen
+#### Instrucciones
+1) Cargar Imagen
+2) Ver resultado abajo
 
 ```{r eruptions, echo=FALSE}
-library(shiny)
 library(miniUI)
 library(magick)
+library(shiny)
 library(keras)
 library(DT)
 library(text2vec)
 library(shinyFiles)
+library(XML)
+
+# Cargar metadatos de ImageNet en formato XML (asi estan)
+"%+%" <- function(x, y) paste(x, y, sep = "")
+metadata <- xmlRoot(xmlParse("data/estructura.xml"))     # Cargar metadatos
 
 #vgg16 <- application_vgg16(weights = 'imagenet', include_top = TRUE)
 vgg16 <- application_mobilenet(weights = 'imagenet', include_top = TRUE)
@@ -33,19 +42,20 @@ shinyApp(
 ui <- fluidPage(
   sidebarLayout(
     sidebarPanel(
-      fileInput("file1", "Elegir Imagen",
+      fileInput("file1", "Elegir Imagen...",
         accept = c(
-          "imagen/csv",
-          "imagen/cosiyas",
+          "image/jpg",
+          "image/png",
           ".jpg")
         ),
-      tags$hr(),
-      checkboxInput("header", "Header", TRUE)
+      tags$hr()
     ),
     mainPanel(
-      tags$em("Preview"),
+      tags$em("Imagen Cargada"),
       imageOutput("imagen"),
-      tags$em("Esto es un..."),
+      tags$em("Esto que cargaste se parece a un..."),
+      uiOutput("resultados"),
+      "El ranking de probabilidades es...",
       tableOutput("contents")
     )
   )
@@ -56,7 +66,6 @@ server <- function(input, output, session) {
     print(inFile)
     if (!is.null(inFile))
     {
-      
       width  <- session$clientData$output_imagen_width
       height <- session$clientData$output_imagen_height
       list(
@@ -67,12 +76,60 @@ server <- function(input, output, session) {
     }
     else
     {
-      list(src="www/kast.png")
+      width  <- session$clientData$output_imagen_width
+      height <- session$clientData$output_imagen_height
+      list(
+        src = "data/noimage.png",
+        width=width,
+        height=height
+      )
     }
   },
   deleteFile = FALSE
   )
   
+  output$resultados <- renderUI({
+    # input$file1 will be NULL initially. After the user selects
+    # and uploads a file, it will be a data frame with 'name',
+    # 'size', 'type', and 'datapath' columns. The 'datapath'
+    # column will contain the local filenames where the data can
+    # be found.
+    dwidth  <- session$clientData$output_imagen_width
+    dheight <- session$clientData$output_imagen_height
+    inFile <- input$file1
+
+    if (is.null(inFile))
+      return("[Cargar Imagen!]")
+    # Procesar
+    img     <- image_load(inFile$datapath, target_size = c(224,224))
+    x = image_to_array(img)
+    dim(x) <- c(1, dim(x))
+    #x = imagenet_preprocess_input(x)
+    x = mobilenet_preprocess_input(x)
+    features = vgg16 %>% predict(x)
+    #imagenet_decode_predictions(features, top = 3)[[1]]
+    wnid <- mobilenet_decode_predictions(features, top = 3)[[1]]$class_name[1]
+    # obtener el nodo del WNID identificado en el XML (horrible)
+    nodo <- getNodeSet(metadata,"//synset[@wnid='" %+% wnid %+% "']")
+    especie <- xmlParent(nodo[[1]])
+    especie_lista <-list(xmlGetAttr(especie, "words"))
+    counter <- 1
+    # Obtener especie recursivamente //esto es horrible...y bue
+    while(!is.null(xmlParent(especie))) {
+      counter <- counter + 1
+      especie <- xmlParent(especie)
+      especie_lista[[counter]] <- xmlGetAttr(especie, "words")
+    }
+    # Output
+    tagList(
+    tags$blockquote(sapply(nodo, xmlGetAttr,"words")[1]),
+    tags$b("Definición:"),
+    tags$em(sapply(nodo, xmlGetAttr, "gloss")[1]),
+    tags$br(),
+    tags$em("Clasificación de la imagen en IMAGENET"),
+    DT::datatable(as.data.frame(unlist(head(especie_lista,-1))), caption = "Especie", rownames = FALSE, colnames = NULL , options = list(info = FALSE, paging = FALSE, searching = FALSE), height = dheight , width = dwidth )
+    )
+  })
   
   output$contents <- renderTable({
     # input$file1 will be NULL initially. After the user selects
@@ -83,7 +140,7 @@ server <- function(input, output, session) {
     inFile <- input$file1
 
     if (is.null(inFile))
-      return(NULL)
+      return("[Cargar Imagen!]")
     # Procesar
     img     <- image_load(inFile$datapath, target_size = c(224,224))
     x = image_to_array(img)
@@ -92,13 +149,10 @@ server <- function(input, output, session) {
     x = mobilenet_preprocess_input(x)
     features = vgg16 %>% predict(x)
     #imagenet_decode_predictions(features, top = 3)[[1]]
-    mobilenet_decode_predictions(features, top = 3)[[1]]
+    mobilenet_decode_predictions(features, top = 5)[[1]]
   })
 }
 )
 
 ``` 
-
-
-
 

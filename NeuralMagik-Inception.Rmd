@@ -1,0 +1,160 @@
+---
+title: "Neural-Magik! Inception"
+author: "F.García Díaz"
+date: "1/4/2018"
+output: html_document
+runtime: shiny
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE ,  message = FALSE)
+```
+
+## Probando Deep Neural-Networks 
+![](www/R.jpg){ width=5% }
+
+Una aplicación para la clasificación de imágenes.
+Implementa el modelo ***MobileNet***.
+
+***Cargar la imagen aquí:***
+
+```{r eruptions, echo=FALSE}
+library(shiny)
+library(miniUI)
+library(magick)
+library(keras)
+library(kerasR)
+library(DT)
+library(text2vec)
+library(shinyFiles)
+library(XML)
+
+# Cargar metadatos de ImageNet en formato XML (asi estan)
+"%+%" <- function(x, y) paste(x, y, sep = "")
+metadata <- xmlRoot(xmlParse("data/estructura.xml"))     # Cargar metadatos
+
+#vgg16 <- application_vgg16(weights = 'imagenet', include_top = TRUE)
+vgg16 <- application_inception_v3(weights = 'imagenet', include_top = TRUE)
+
+
+shinyApp(
+ui <- fluidPage(
+  sidebarLayout(
+    sidebarPanel(
+      fileInput("file1", "Elegir Imagen",
+        accept = c(
+          "imagen/csv",
+          "imagen/cosiyas",
+          ".jpg")
+        ),
+      tags$hr()
+    ),
+    mainPanel(
+      tags$em("Preview"),
+      imageOutput("imagen"),
+      tags$em("Esto que cargaste se parece a un..."),
+      uiOutput("resultados"),
+      "El ranking de probabilidades es...",
+      tableOutput("contents")
+    )
+  )
+),
+server <- function(input, output, session) {
+  output$imagen <- renderImage({
+    inFile = input$file1
+    print(inFile)
+    if (!is.null(inFile))
+    {
+      width  <- session$clientData$output_imagen_width
+      height <- session$clientData$output_imagen_height
+      list(
+        src = inFile$datapath,
+        width=width,
+        height=height
+      )
+    }
+    else
+    {
+      width  <- session$clientData$output_imagen_width
+      height <- session$clientData$output_imagen_height
+      list(
+        src = "data/noimage.png",
+        width=width,
+        height=height
+      )
+    }
+  },
+  deleteFile = FALSE
+  )
+  
+  output$resultados <- renderUI({
+    # input$file1 will be NULL initially. After the user selects
+    # and uploads a file, it will be a data frame with 'name',
+    # 'size', 'type', and 'datapath' columns. The 'datapath'
+    # column will contain the local filenames where the data can
+    # be found.
+    dwidth  <- session$clientData$output_imagen_width
+    dheight <- session$clientData$output_imagen_height
+    inFile <- input$file1
+
+    if (is.null(inFile))
+      return("[Cargar Imagen!]")
+    # Procesar
+    img     <- image_load(inFile$datapath, target_size = c(224,224))
+    x = image_to_array(img)
+    dim(x) <- c(1, dim(x))
+    #x = imagenet_preprocess_input(x)
+    x = inception_v3_preprocess_input(x)
+    features = vgg16 %>% predict(x)
+    #imagenet_decode_predictions(features, top = 3)[[1]]
+    wnid <- decode_predictions(features, model = c("InceptionV3"), top = 5)[[1]][[1]]
+    # obtener el nodo del WNID identificado en el XML (horrible)
+    nodo <- getNodeSet(metadata,"//synset[@wnid='" %+% wnid %+% "']")
+    especie <- xmlParent(nodo[[1]])
+    especie_lista <-list(xmlGetAttr(especie, "words"))
+    counter <- 1
+    # Obtener especie recursivamente //esto es horrible...y bue
+    while(!is.null(xmlParent(especie))) {
+      counter <- counter + 1
+      especie <- xmlParent(especie)
+      especie_lista[[counter]] <- xmlGetAttr(especie, "words")
+    }
+    # Output
+    tagList(
+    tags$blockquote(sapply(nodo, xmlGetAttr,"words")[1]),
+    tags$b("Definición:"),
+    tags$em(sapply(nodo, xmlGetAttr, "gloss")[1]),
+    tags$br(),
+    tags$em("Clasificación de la imagen en IMAGENET"),
+    DT::datatable(as.data.frame(unlist(head(especie_lista,-1))), caption = "Especie", rownames = FALSE, colnames = NULL , options = list(info = FALSE, paging = FALSE, searching = FALSE), height = dheight , width = dwidth )
+    )
+  })
+  
+  output$contents <- renderTable({
+    # input$file1 will be NULL initially. After the user selects
+    # and uploads a file, it will be a data frame with 'name',
+    # 'size', 'type', and 'datapath' columns. The 'datapath'
+    # column will contain the local filenames where the data can
+    # be found.
+    inFile <- input$file1
+
+    if (is.null(inFile))
+      return("[Cargar Imagen!]")
+    # Procesar
+    img     <- image_load(inFile$datapath, target_size = c(224,224))
+    x = image_to_array(img)
+    dim(x) <- c(1, dim(x))
+    #x = imagenet_preprocess_input(x)
+    x = inception_v3_preprocess_input(x)
+    features = vgg16 %>% predict(x)
+    #imagenet_decode_predictions(features, top = 3)[[1]]
+    decode_predictions(features, model = c("InceptionV3"), top = 5)[[1]]
+  })
+}
+)
+
+``` 
+
+
+
+
