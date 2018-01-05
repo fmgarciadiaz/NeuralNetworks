@@ -2,7 +2,7 @@
 title: "Neural-Magik!"
 author: "F.García Díaz"
 date: "1/4/2018"
-output: html_notebook
+output: html_document
 runtime: shiny
 ---
 
@@ -10,8 +10,7 @@ runtime: shiny
 knitr::opts_chunk$set(echo = TRUE ,  message = FALSE)
 ```
 
-### Probando Deep Neural-Networks en 
-![](www/R.jpg){ width=5% }
+### Probando Deep Neural-Networks en ![](data/R.jpg){ width=5% }
 
 Una aplicación para la clasificación de imágenes.
 Implementa el modelo [***MobileNet***](https://arxiv.org/abs/1704.04861) en [***Keras***](https://keras.rstudio.com) pre-entrenado con [***ImageNet***](http://www.image-net.org).
