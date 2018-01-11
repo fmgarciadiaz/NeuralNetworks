@@ -41,21 +41,12 @@ shinyApp(
 ui <- fluidPage(
   sidebarLayout(
     sidebarPanel(
-      fileInput("file1", "Elegir Imagen...",
-        accept = c(
-          "image/jpg",
-          "image/png",
-          ".jpg")
-        ),
-      tags$hr()
-    ),
+      fileInput("file1", "Elegir Imagen..."),
+      tags$hr()),
     mainPanel(
       tags$em("Imagen Cargada"),
       imageOutput("imagen"),
-      tags$em("Esto que cargaste se parece a un..."),
-      uiOutput("resultados"),
-      "El ranking de probabilidades es...",
-      tableOutput("contents")
+      uiOutput("resultados")
     )
   )
 ),
@@ -98,7 +89,7 @@ server <- function(input, output, session) {
     inFile <- input$file1
 
     if (is.null(inFile))
-      return("[Cargar Imagen!]")
+      return("No file selected...")
     # Procesar
     img     <- image_load(inFile$datapath, target_size = c(224,224))
     x = image_to_array(img)
@@ -121,34 +112,23 @@ server <- function(input, output, session) {
     }
     # Output
     tagList(
+    tags$em("Esto que cargaste se parece a un..."),
     tags$blockquote(sapply(nodo, xmlGetAttr,"words")[1]),
     tags$b("Definición:"),
     tags$em(sapply(nodo, xmlGetAttr, "gloss")[1]),
     tags$br(),
-    tags$em("Clasificación de la imagen en IMAGENET"),
-    DT::datatable(as.data.frame(unlist(head(especie_lista,-1))), caption = "Especie", rownames = FALSE, colnames = NULL , options = list(info = FALSE, paging = FALSE, searching = FALSE), height = dheight , width = dwidth )
+    tags$br(),
+    tags$em("Arbol de clasificación de la imagen en IMAGENET"),
+    DT::datatable(as.data.frame(unlist(head(especie_lista,-1))), 
+                  caption = "Especie", rownames = FALSE,
+                  colnames = NULL , options = list(info = FALSE, paging = FALSE, searching = FALSE), 
+                  height = dheight , width = dwidth ),
+    "El ranking de probabilidades de clasificaciones es...",
+    DT::datatable(as.data.frame(mobilenet_decode_predictions(features, top = 5)[[1]]),
+                  caption = "Ranking", options = list(info = FALSE, paging = FALSE, 
+                  searching = FALSE), height = dheight , width = dwidth ) %>%
+                  formatPercentage('score', 2)
     )
-  })
-  
-  output$contents <- renderTable({
-    # input$file1 will be NULL initially. After the user selects
-    # and uploads a file, it will be a data frame with 'name',
-    # 'size', 'type', and 'datapath' columns. The 'datapath'
-    # column will contain the local filenames where the data can
-    # be found.
-    inFile <- input$file1
-
-    if (is.null(inFile))
-      return("[Cargar Imagen!]")
-    # Procesar
-    img     <- image_load(inFile$datapath, target_size = c(224,224))
-    x = image_to_array(img)
-    dim(x) <- c(1, dim(x))
-    #x = imagenet_preprocess_input(x)
-    x = mobilenet_preprocess_input(x)
-    features = vgg16 %>% predict(x)
-    #imagenet_decode_predictions(features, top = 3)[[1]]
-    mobilenet_decode_predictions(features, top = 5)[[1]]
   })
 }
 )

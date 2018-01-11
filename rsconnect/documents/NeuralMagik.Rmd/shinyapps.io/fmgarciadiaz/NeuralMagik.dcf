@@ -5,8 +5,8 @@ account: fmgarciadiaz
 server: shinyapps.io
 hostUrl: https://api.shinyapps.io/v1
 appId: 253620
-bundleId: 1163395
+bundleId: 1172050
 url: https://fmgarciadiaz.shinyapps.io/NeuralMagik/
-when: 1515166443.94713
+when: 1515683067.95036
 asMultiple: FALSE
 asStatic: FALSE
